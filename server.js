@@ -43,6 +43,10 @@ async function connectDB() {
 }
 connectDB();
 
+app.get('/', (req, res) => {
+    res.json({ status: 'After School Lessons API is running' });
+});
+
 app.get('/lessons', async (req, res) => {
     try {
         const lessons = await db.collection('lessons').find({}).toArray();
