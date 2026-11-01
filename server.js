@@ -37,6 +37,10 @@ async function connectDB() {
         await client.connect();
         db = client.db('school');
         console.log('Connected to MongoDB Atlas (school)');
+        const PORT = process.env.PORT || 3000;
+        app.listen(PORT, () => {
+            console.log(`Server running on http://localhost:${PORT}`);
+        });
     } catch (err) {
         console.error('MongoDB connection error:', err);
     }
@@ -78,9 +82,4 @@ app.put('/lessons/:id', async (req, res) => {
     } catch (err) {
         res.status(500).json({ error: 'Failed to update lesson' });
     }
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
 });
