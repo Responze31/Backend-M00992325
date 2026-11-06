@@ -64,8 +64,11 @@ app.get('/lessons', async (req, res) => {
 
 app.post('/orders', async (req, res) => {
     try {
-        const newOrder = req.body;
-        const result = await db.collection('order').insertOne(newOrder);
+        const { name, phone, lessons } = req.body;
+        if (!name || !phone || !Array.isArray(lessons) || lessons.length === 0) {
+            return res.status(400).json({ error: 'Missing required order fields' });
+        }
+        const result = await db.collection('order').insertOne({ name, phone, lessons });
         res.status(201).json(result);
     } catch (err) {
         res.status(500).json({ error: 'Failed to save order' });
@@ -86,5 +89,26 @@ app.put('/lessons/:id', async (req, res) => {
         res.json(result);
     } catch (err) {
         res.status(500).json({ error: 'Failed to update lesson' });
+    }
+});
+
+app.get('/search', async (req, res) => {
+    try {
+        const q = (req.query.q || '').trim();
+        if (!q) {
+            const allLessons = await db.collection('lessons').find({}).toArray();
+            return res.json(allLessons);
+        }
+        const regex = new RegExp(q, 'i');
+        const allLessons = await db.collection('lessons').find({}).toArray();
+        const filtered = allLessons.filter(l =>
+            regex.test(l.subject) ||
+            regex.test(l.location) ||
+            regex.test(String(l.price)) ||
+            regex.test(String(l.spaces))
+        );
+        res.json(filtered);
+    } catch (err) {
+        res.status(500).json({ error: 'Search failed' });
     }
 });
