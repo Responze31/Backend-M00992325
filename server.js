@@ -77,7 +77,7 @@ app.post('/orders', async (req, res) => {
 
 app.put('/lessons/:id', async (req, res) => {
     try {
-        const lessonId = req.params.id;
+        const lessonId = req.params.id;b  
         if (!ObjectId.isValid(lessonId)) {
             return res.status(400).json({ error: 'Invalid lesson ID format' });
         }
@@ -110,5 +110,25 @@ app.get('/search', async (req, res) => {
         res.json(filtered);
     } catch (err) {
         res.status(500).json({ error: 'Search failed' });
+    }
+});
+
+app.get('/enrolment/:lessonid', async (req, res) => {
+    try {
+        const lessonId = req.params.lessonid;
+        const orders = await db.collection('order').find({}).toArray();
+        let enrolled = 0;
+        orders.forEach(order => {
+            if (Array.isArray(order.lessons)) {
+                order.lessons.forEach(item => {
+                    if (item.lessonId === lessonId) {
+                        enrolled += Number(item.spaces || 0);
+                    }
+                });
+            }
+        });
+        res.json({ lessonId, enrolled });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to calculate enrolment' });
     }
 });
