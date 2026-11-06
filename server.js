@@ -10,7 +10,9 @@ app.use(cors());
 app.use(express.json());
 
 app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} request to ${req.url}`);
+    res.on('finish', () => {
+        console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} - Status: ${res.statusCode}`);
+    });
     next();
 });
 
