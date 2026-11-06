@@ -75,6 +75,9 @@ app.post('/orders', async (req, res) => {
 app.put('/lessons/:id', async (req, res) => {
     try {
         const lessonId = req.params.id;
+        if (!ObjectId.isValid(lessonId)) {
+            return res.status(400).json({ error: 'Invalid lesson ID format' });
+        }
         const updates = req.body;
         const result = await db.collection('lessons').updateOne(
             { _id: new ObjectId(lessonId) },
