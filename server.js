@@ -49,6 +49,21 @@ async function connectDB() {
 }
 connectDB();
 
+function getTeacherFullName(lesson) {
+    const first = String(lesson.teacherFirstName ?? '').trim();
+    const last = String(lesson.teacherLastName ?? '').trim();
+    return [first, last].filter(Boolean).join(' ');
+}
+
+function matchesTeacher(lesson, name) {
+    const target = String(name ?? '').trim().toLowerCase();
+    if (!target) return false;
+    const first = String(lesson.teacherFirstName ?? '').trim().toLowerCase();
+    const last = String(lesson.teacherLastName ?? '').trim().toLowerCase();
+    const full = getTeacherFullName(lesson).toLowerCase();
+    return full === target || first === target || last === target;
+}
+
 app.get('/', (req, res) => {
     res.json({ status: 'After School Lessons API is running' });
 });
@@ -56,9 +71,39 @@ app.get('/', (req, res) => {
 app.get('/lessons', async (req, res) => {
     try {
         const lessons = await db.collection('lessons').find({}).toArray();
+        const teacher = typeof req.query.teacher === 'string' ? req.query.teacher.trim() : '';
+        if (teacher) {
+            return res.json(lessons.filter(lesson => matchesTeacher(lesson, teacher)));
+        }
         res.json(lessons);
     } catch (err) {
         res.status(500).json({ error: 'Failed to fetch lessons' });
+    }
+});
+
+app.get('/teachers', async (req, res) => {
+    try {
+        const lessons = await db.collection('lessons').find({}).toArray();
+        const teachersMap = new Map();
+        lessons.forEach(lesson => {
+            const fullName = getTeacherFullName(lesson);
+            if (fullName && !teachersMap.has(fullName.toLowerCase())) {
+                teachersMap.set(fullName.toLowerCase(), fullName);
+            }
+        });
+        res.json(Array.from(teachersMap.values()).sort());
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch teachers' });
+    }
+});
+
+app.get('/lessons/teacher/:name', async (req, res) => {
+    try {
+        const lessons = await db.collection('lessons').find({}).toArray();
+        const filtered = lessons.filter(lesson => matchesTeacher(lesson, req.params.name));
+        res.json(filtered);
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch lessons by teacher' });
     }
 });
 
@@ -77,7 +122,7 @@ app.post('/orders', async (req, res) => {
 
 app.put('/lessons/:id', async (req, res) => {
     try {
-        const lessonId = req.params.id;b  
+        const lessonId = req.params.id;
         if (!ObjectId.isValid(lessonId)) {
             return res.status(400).json({ error: 'Invalid lesson ID format' });
         }
@@ -94,19 +139,23 @@ app.put('/lessons/:id', async (req, res) => {
 
 app.get('/search', async (req, res) => {
     try {
-        const q = (req.query.q || '').trim();
+        const q = (typeof req.query.q === 'string' ? req.query.q : '').trim().toLowerCase();
+        const allLessons = await db.collection('lessons').find({}).toArray();
         if (!q) {
-            const allLessons = await db.collection('lessons').find({}).toArray();
             return res.json(allLessons);
         }
-        const regex = new RegExp(q, 'i');
-        const allLessons = await db.collection('lessons').find({}).toArray();
-        const filtered = allLessons.filter(l =>
-            regex.test(l.subject) ||
-            regex.test(l.location) ||
-            regex.test(String(l.price)) ||
-            regex.test(String(l.spaces))
-        );
+        const filtered = allLessons.filter(l => {
+            const fields = [
+                l.subject,
+                l.location,
+                l.price,
+                l.spaces,
+                l.teacherFirstName,
+                l.teacherLastName,
+                getTeacherFullName(l)
+            ];
+            return fields.some(val => String(val ?? '').toLowerCase().includes(q));
+        });
         res.json(filtered);
     } catch (err) {
         res.status(500).json({ error: 'Search failed' });
